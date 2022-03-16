@@ -28,7 +28,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               Yylex yy = new Yylex(yyin);
               Yytoken t;
               while ((t = yy.yylex()) != null) {
-                //System.out.println(t.type);
+                System.out.println(t.type);
               }
             }
             catch (Throwable e) {
@@ -46,7 +46,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 LineTerminator = \r|\n|\r\n
 InputCharacter = [^\r\n]
 WhiteSpace     = {LineTerminator} | [ \t\f]
-
+Number         = [:digit:]+
 Identifier = [:jletter:] [:jletterdigit:]*
 
 
@@ -56,6 +56,7 @@ Identifier = [:jletter:] [:jletterdigit:]*
 <YYINITIAL> {
 /* identifiers */
 {Identifier}                   { return new Yytoken("IDENTIFIER"); }
+{Number}                       { return new Yytoken("NUMBER"); }
 
 /* literals */
 \"                             { stringBuffer.setLength(0); yybegin(STRING); }
