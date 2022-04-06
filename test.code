@@ -1,6 +1,7 @@
-x = "Hello World"
-e * + - "/"
+String x = "Hello World"
+Number d = 3
 ()
 ""
 ()
-3
+31
+d = 5
