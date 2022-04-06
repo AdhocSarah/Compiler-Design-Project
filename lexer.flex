@@ -35,6 +35,7 @@ class Variable {
 
 %%
 
+
 %unicode
 
 %{
@@ -185,9 +186,10 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 LineTerminator = \r|\n|\r\n
 InputCharacter = [^\r\n]
 WhiteSpace     = {LineTerminator} | [ \t\f]
-Number         = [:digit:]+
+Digit          = [:digit:]+
+Float          = [:digit:]+\.[:digit:]+
 Identifier = [:jletter:] [:jletterdigit:]*
-
+InvalidNumber = [:jletterdigit:]*[:jletter:]*
 
 %state STRING
 %state NUMBER
@@ -195,6 +197,10 @@ Identifier = [:jletter:] [:jletterdigit:]*
 %%
 <YYINITIAL> {
 /* identifiers */
+
+
+{InvalidNumber}                { return new Yytoken("INVALID"); }
+{Float}                        {  return new Yytoken("FLOAT"); }
 {Identifier}                   { return new Yytoken("IDENTIFIER", yytext()); }
 {Number}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER); }
 
@@ -211,10 +217,25 @@ Identifier = [:jletter:] [:jletterdigit:]*
 "/"                            { return new Yytoken("DIV"); }
 "("                            { return new Yytoken("LFBRACK"); }
 ")"                            { return new Yytoken("RTBRACK"); }
+";"                            { return new Yytoken("SEMIOLON"); }
+"<"                            { return new Yytoken("LTHAN"); }
+">"                            { return new Yytoken("GTHAN"); }
+"=="                           { return new Yytoken("EQCOMP"); }
+"<="                           { return new Yytoken("LTHANCOMP"); }
+">="                           { return new Yytoken("GTHANCOMP"); }
+"."                            { return new Yytoken("PERIOD"); }
+"!"                            { return new Yytoken("NOT");}
+"!="                           { return new Yytoken("NOTEQ"); }
+"//"                           { return new Yytoken("COMMENT"); }
+"##"                           { return new Yytoken("COMMENT"); }
+"#"                            { return new Yytoken("INVALID"); }
+
+
 
 
 /* whitespace */
 {WhiteSpace}                   { /* ignore */ }
+
 }
 
 <NUMBER> {
@@ -232,11 +253,13 @@ Identifier = [:jletter:] [:jletterdigit:]*
 [^\n\r\"\\]+                   { stringBuffer.append( yytext() ); }
 \\t                            { stringBuffer.append('\t'); }
 \\n                            { stringBuffer.append('\n'); }
-
 \\r                            { stringBuffer.append('\r'); }
 \\\"                           { stringBuffer.append('\"'); }
 \\                             { stringBuffer.append('\\'); }
 }
+
+
+
 
 /* error fallback */
 [^]                              { throw new Error("Illegal character <"+yytext()+">"); }
