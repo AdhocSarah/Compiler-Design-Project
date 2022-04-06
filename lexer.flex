@@ -110,6 +110,9 @@ public static void main(String[] args) throws FileNotFoundException, IOException
         else if (newVarStage > 0) {
           if (newVarStage == 1 && elem.type.equals("IDENTIFIER")) {
             varName = String.valueOf(elem.value);
+            if (contains(RESERVED, varName)) {
+              throw new Error("Reserved identifier.");
+            }
             newVarStage = 2;
           }
           else if (newVarStage == 2 && elem.type.equals("EQ")) {
