@@ -60,7 +60,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 <<<<<<< Updated upstream
   String[] RESERVED = {"String", "Number", "bool", "int, "true", "struct", "if", "then"
                         , "false", "else", "void", "and", "for", "return", "mod", "or"};
-  String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER"};
+  String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER", "BOOLEAN"};
 
   // Lexing
   FileReader yyin = new FileReader(args[0]);
@@ -98,6 +98,16 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     int oldVarStage = 0;
     String varName = "";
     String varType = "";
+
+    //Check if variable values match : 0 = nothing to compare, 1 = numbers, 2 = strings, 3 = boolean, 4 = mismatch;
+    int varCurr = 0; //Keeps track of the variable that will be assigned
+    int varCheck = 0; //Checks what's on the RHS for valid input after Mathematical operator
+    boolean validExpression = true;
+
+    //Check for valid closure of parentheses
+    int numParenthsis = 0;
+    boolean validClosure = true;
+
     try {
       for (Yytoken elem : tokens) {
 
@@ -119,15 +129,15 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 =======
             FileReader yyin = new FileReader(args[0]);
             boolean isValid = true;
-            try {
+        try {
               Yylex yy = new Yylex(yyin);
               Yytoken t;
               while ((t = yy.yylex()) != null) {
-              if (t.type == "INVALID"){
-                isValid = false;
-              }else{
-                  System.out.println(t.type);
-              }
+                  if (t.type == "INVALID"){
+                      isValid = false;
+                  }else{
+                    System.out.println(t.type);
+                  }
               }
 >>>>>>> Stashed changes
             }
@@ -148,31 +158,89 @@ public static void main(String[] args) throws FileNotFoundException, IOException
         else if (oldVarStage > 0) {
           if (oldVarStage == 1 && elem.type.equals("EQ")) {
             oldVarStage = 2;
-          }
-          else if (oldVarStage == 2 && contains(DATA_TYPES, String.valueOf(elem.type))) {
+          }else if (oldVarStage == 2 && contains(DATA_TYPES, String.valueOf(elem.type))) {
             varType = String.valueOf(elem.type);
+            //Check if the variable has a valid definition
             if (varType.equals("STRING_LITERAL")) {
               varType = "String";
-            }
-            else if (varType.equals("NUMBER")) {
+              varCurr = 2;
+
+            }else if (varType.equals("NUMBER")) {
               varType = "Number";
-            }
+              varCurr = 1;
+
+          }else if (varType.equals("BOOLEAN")){
+              varType = "bool";
+              varCurr = 3;
+          }
+            //Check if the variable value matches the definition
             Variable oldVar = vars.get(varName);
             if (oldVar.type.equals(varType)) {
               oldVar.value = elem.value;
               oldVarStage = 0;
-            }
-            else {
+
+              int temp = varCheck; //for use during mathematical expressions
+
+              if (elem.type.equals("String")){
+                  varCheck = 2;
+
+              }else if (elem.type.equals("Number")){
+                  varCheck = 1;
+
+              }else if (elem.type.equals("bool")){
+                  varCheck = 3;
+              }else {
+                  varCheck = 0;
+              }
+              if (temp != varCheck){
+                  validExpression = false;
+              }
+
+            }else{
               throw new Error("Variable type mismatch." );
             }
 
-          }
-          else {
+          }else {
             throw new Error("Bad variable definition." );
           }
+
+
+          //Building of expressions Check SYNTAX
+          if (elem.type.equals("SEMICOLON")){
+              varCurr = 0;
+              //if once you hit a semicolon, there is an opened bracket, invalid closure
+              if (numParenthsis != 0){
+                  validClosure = false;
+              }
+              validExpression = true;
+          }else if (elem.type.equals("RFBRACK")){
+              ++numParenthsis;
+          }else if (elem.type.equals("LFBRACK")){
+              --numParenthsis;
+          }
+
+        //Check if the expressions could be done
+          if (elem.type.equals("MATH") || elem.type.equals("COMP")){
+              if (varCurr != 1){
+                  validExpression = false;
+              }
+              if (varCurr != varCheck){
+                  validExpression = false;
+              }
+          }
+
+          if (validExpression == false){
+              throw new Error("Invalid expression");
+          }
+
         }
 
       }
+      if (validClosure == false){
+          throw new Error("Invalid expression, you must close parentheses.");
+      }
+    }
+
     }
 
     catch (Throwable e) {
@@ -224,22 +292,28 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 \"                             { stringBuffer.setLength(0); yybegin(STRING); }
 
 /* operators */
+//Syntax
 "="                            { return new Yytoken("EQ"); }
-"*"                            { return new Yytoken("TIMES"); }
-"+"                            { return new Yytoken("PLUS"); }
-"-"                            { return new Yytoken("MINUS"); }
-"/"                            { return new Yytoken("DIV"); }
+";"                            { return new Yytoken("SEMICOLON"); }
+"."                            { return new Yytoken("PERIOD"); }
 "("                            { return new Yytoken("LFBRACK"); }
 ")"                            { return new Yytoken("RTBRACK"); }
-";"                            { return new Yytoken("SEMIOLON"); }
-"<"                            { return new Yytoken("LTHAN"); }
-">"                            { return new Yytoken("GTHAN"); }
-"=="                           { return new Yytoken("EQCOMP"); }
-"<="                           { return new Yytoken("LTHANCOMP"); }
-">="                           { return new Yytoken("GTHANCOMP"); }
-"."                            { return new Yytoken("PERIOD"); }
 "!"                            { return new Yytoken("NOT");}
-"!="                           { return new Yytoken("NOTEQ"); }
+
+//Mathematical operators
+"*"                            { return new Yytoken("MATH"); }
+"+"                            { return new Yytoken("MATH"); }
+"-"                            { return new Yytoken("MATH"); }
+"/"                            { return new Yytoken("MATH"); }
+"<"                            { return new Yytoken("MATH"); }
+">"                            { return new Yytoken("MATH"); }
+
+//Comparison operators
+"=="                           { return new Yytoken("COMP"); }
+"<="                           { return new Yytoken("COMP"); }
+">="                           { return new Yytoken("COMP"); }
+"!="                           { return new Yytoken("COMP"); }
+
 "//"                           { return new Yytoken("COMMENT"); }
 "##"                           { return new Yytoken("COMMENT"); }
 "#"                            { return new Yytoken("INVALID"); }
