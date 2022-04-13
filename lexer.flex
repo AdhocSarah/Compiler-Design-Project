@@ -21,16 +21,51 @@ class Yytoken {
   }
 }
 
-class Variable {
-  public String type;
-  public Object value;
-  public Variable(String type, Object value) {
-    this.type = type;
-    this.value = value;
+class Expression {
+  public boolean simple;
+  public Yytoken LHS;
+  public Yytoken OP;
+  public Yytoken RHS;
+  String[] MATH_OPS = {"PLUS", "MINUS", "TIMES"};
+
+  public void editExpr(int stage, Yytoken elem) {
+    if (stage == 2) {
+      LHS = elem;
+    } else if (stage == 3) {
+      OP = elem;
+    } else if (stage == 0) {
+      RHS = elem;
+    }
   }
-  public String toString() {
-    return "{"+this.type + " : " + this.value  + "}";
+
+  public static <T> boolean contains(final T[] array, final T v) {
+      if (v == null) {
+          for (final T e : array)
+              if (e == null)
+                  return true;
+      }
+      else {
+          for (final T e : array)
+              if (e == v || v.equals(e))
+                  return true;
+      }
+
+      return false;
   }
+
+  public Yytoken condense() {
+    if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(MATH_OPS, String.valueOf(OP.type))) {
+      return new Yytoken("NUMBER");
+    }
+    throw new Error("Type mismatch in expression.");
+  }
+
+  public String toString(){
+    return "   Expr: " + String.valueOf(LHS.type) + " " + String.valueOf(OP.type) + " " + String.valueOf(RHS.type);
+
+  }
+
+
 }
 
 class Function {
@@ -73,12 +108,14 @@ public static <T> boolean contains(final T[] array, final T v) {
 public static void main(String[] args) throws FileNotFoundException, IOException{
   String[] RESERVED = {"String", "Number", "Function"};
   String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER"};
+  String[] OPERATORS = {"PLUS", "MINUS", "TIMES"};
+
 
   // Lexing
   FileReader yyin = new FileReader(args[0]);
   boolean isValid = true;
   ArrayList<Yytoken> tokens = new ArrayList<>();
-  HashMap<String, Variable> vars = new HashMap<>();
+  HashMap<String, String> varTypes = new HashMap<>();
 
   try {
     Yylex yy = new Yylex(yyin);
@@ -111,32 +148,53 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     int oldVarStage = 0;
     String varName = "";
     String varType = "";
+
+    // Build Expr. Stages: 0 = none. 1 = building LHS. 2 = getting op. 3 = building RHS.
     int buildExprStage = 0;
-    ArrayList<Yytoken> expression = new ArrayList<>();
+    Expression currExpr = new Expression();
 
     try {
       for (Yytoken elem : tokens) {
-
-        if (buildExpr) {
+        if (buildExprStage != 0 || (buildExprStage == 0 && contains(DATA_TYPES, String.valueOf(elem.type)))) {
+          /* System.out.println("Adding to expr @ " + buildExprStage + " w/ " + String.valueOf(elem.type)); */
+          if (buildExprStage < 2) {
+            buildExprStage = 2;
+          } else if (buildExprStage == 2 && contains(OPERATORS, String.valueOf(elem.type))) {
+            // Operator found.
+            buildExprStage = 3;
+          } else if (buildExprStage == 3) {
+              buildExprStage = 0;
+          }
+          /* System.out.println("Adding to expr @ " + buildExprStage + " w/ " + String.valueOf(elem.type)); */
+          currExpr.editExpr(buildExprStage, elem);
+          if (buildExprStage == 0) {
+            elem = currExpr.condense();
+            elem.value = "EXPRESSION";
+            /* System.out.println(currExpr);
+            System.out.println(elem.type + ((elem.value != null) ? " - "+ elem.value : "")); */
+          }
           // TODO: Handle expression building and type checking
           // TODO: Ignore values because we don't calculate
         }
-        else {
+        System.out.println(elem.type + ((elem.value != null) ? " - "+ elem.value : ""));
+        if (buildExprStage == 0 || (buildExprStage == 1 && (newVarStage != 0 || oldVarStage != 0))) {
           if (newVarStage == 0 && oldVarStage == 0) {
+
             if (elem.value != null && contains(RESERVED, String.valueOf(elem.value))) {
               newVarStage = 1;
-              buildExpr = false;
+              buildExprStage = 0;
               varType =  String.valueOf(elem.value);
             }
-            if (elem.value != null && elem.type.equals("IDENTIFIER") && vars.keySet().contains(String.valueOf(elem.value))) {
+            else if (elem.value != null && elem.type.equals("IDENTIFIER") && varTypes.keySet().contains(String.valueOf(elem.value))) {
               varName= String.valueOf(elem.value);
-              buildExpr = false;
+              buildExprStage = 0;
               oldVarStage = 1;
             }
           }
           else if (newVarStage > 0) {
             if (newVarStage == 1 && elem.type.equals("IDENTIFIER")) {
               varName = String.valueOf(elem.value);
+
               if (contains(RESERVED, varName)) {
                 throw new Error("Error: Reserved identifier.");
               }
@@ -144,6 +202,8 @@ public static void main(String[] args) throws FileNotFoundException, IOException
             }
             else if (newVarStage == 2 && elem.type.equals("EQ")) {
               newVarStage = 3;
+              buildExprStage = 1;
+              currExpr = new Expression();
             }
             else if (newVarStage == 3 && contains(DATA_TYPES, String.valueOf(elem.type))) {
               String valType = String.valueOf(elem.type);
@@ -154,8 +214,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
                 valType = "Number";
               }
               if (valType.equals(varType)) {
-                Variable newVar = new Variable(varType, elem.value);
-                vars.put(varName, newVar);
+                varTypes.put(varName, varType);
                 newVarStage = 0;
               }
               else {
@@ -170,6 +229,9 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           else if (oldVarStage > 0) {
             if (oldVarStage == 1 && elem.type.equals("EQ")) {
               oldVarStage = 2;
+              buildExprStage = 1;
+              currExpr = new Expression();
+
             }
             else if (oldVarStage == 2 && contains(DATA_TYPES, String.valueOf(elem.type))) {
               varType = String.valueOf(elem.type);
@@ -179,9 +241,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               else if (varType.equals("NUMBER")) {
                 varType = "Number";
               }
-              Variable oldVar = vars.get(varName);
-              if (oldVar.type.equals(varType)) {
-                oldVar.value = elem.value;
+              if (varTypes.get(varName).equals(varType)) {
                 oldVarStage = 0;
               }
               else {
@@ -211,8 +271,8 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 
 
       out = new StringBuilder("Variables:\n");
-      for (String id : vars.keySet()) {
-        out.append("  " + id + "," + vars.get(id) + "\n");
+      for (String id : varTypes.keySet()) {
+        out.append("  " + id + ": " + varTypes.get(id) + "\n");
       }
       System.out.println(out.toString());
 
@@ -222,7 +282,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 LineTerminator = \r|\n|\r\n
 InputCharacter = [^\r\n]
 WhiteSpace     = {LineTerminator} | [ \t\f]
-Digit          = -?[:digit:]+
+Number          = -?[:digit:]+
 Float          = [:digit:]+\.[:digit:]+
 Identifier = [:jletter:] [:jletterdigit:]*
 InvalidNumber = [:jletterdigit:]*[:jletter:]*
@@ -237,7 +297,7 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 {Identifier}                   { return new Yytoken("IDENTIFIER", yytext()); }
 /* {InvalidNumber}                { return new Yytoken("INVALID"); } */
 {Float}                        {  return new Yytoken("FLOAT"); }
-{Digit}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER); }
+{Number}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER);}
 
 
 
@@ -276,9 +336,9 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 
 <NUMBER> {
 [:jletter:]                     { throw new Error("Invalid or unexpected token in number <"+yytext()+">");}
-{WhiteSpace}                    { yybegin(YYINITIAL);
+{WhiteSpace}                    { try {yybegin(YYINITIAL);
                                return new Yytoken("NUMBER",
-                               Integer.parseInt(stringBuffer.toString())); }
+                               Integer.parseInt(stringBuffer.toString())); } catch (Throwable e) {throw new Error("Invalid number.");}}
 [:digit:]                       { stringBuffer.append( yytext() ); }
 }
 
