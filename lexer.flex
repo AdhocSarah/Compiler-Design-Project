@@ -26,7 +26,8 @@ class Expression {
   public Yytoken LHS;
   public Yytoken OP;
   public Yytoken RHS;
-  String[] MATH_OPS = {"PLUS", "MINUS", "TIMES"};
+  String[] MATH_OPS = {"PLUS", "MINUS", "TIMES", "DIV"};
+  String[] COMP_OPS = {"GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP"};
 
   public void editExpr(int stage, Yytoken elem) {
     if (stage == 2) {
@@ -54,11 +55,11 @@ class Expression {
   }
 
   public Yytoken condense() {
-    // TODO: Handle other operators. 
-
     if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(MATH_OPS, String.valueOf(OP.type))) {
       return new Yytoken("NUMBER");
-    }
+  } else if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(COMP_OPS, String,valueOf(OP.type))){
+      return new Yytoken("BOOLEAN");
+  }
     throw new Error("Type mismatch in expression.");
   }
 
@@ -109,8 +110,8 @@ public static <T> boolean contains(final T[] array, final T v) {
 
 public static void main(String[] args) throws FileNotFoundException, IOException{
   String[] RESERVED = {"String", "Number", "Function"};
-  String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER"};
-  String[] OPERATORS = {"PLUS", "MINUS", "TIMES"};
+  String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER", "BOOLEAN"};
+  String[] OPERATORS = {"PLUS", "MINUS", "TIMES", "DIV", "GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP"};
 
 
   // Lexing
@@ -214,7 +215,10 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               }
               else if (valType.equals("NUMBER")) {
                 valType = "Number";
-              }
+            }
+            else if (valType.equals("BOOLEAN")){
+                valType = "Boolean";
+            }
               if (valType.equals(varType)) {
                 varTypes.put(varName, varType);
                 newVarStage = 0;
@@ -242,6 +246,9 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               }
               else if (varType.equals("NUMBER")) {
                 varType = "Number";
+              }
+              else if (valType.equals("BOOLEAN")){
+                  valType = "Boolean";
               }
               if (varTypes.get(varName).equals(varType)) {
                 oldVarStage = 0;
@@ -287,7 +294,9 @@ WhiteSpace     = {LineTerminator} | [ \t\f]
 Number          = -?[:digit:]+
 Float          = [:digit:]+\.[:digit:]+
 Identifier = [:jletter:] [:jletterdigit:]*
-InvalidNumber = [:jletterdigit:]*[:jletter:]*
+InvalidNumber = [:jletterdigit:]*[:jletter:]*\
+Boolean = true | false
+
 
 %state STRING
 %state NUMBER
@@ -300,6 +309,7 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 /* {InvalidNumber}                { return new Yytoken("INVALID"); } */
 {Float}                        {  return new Yytoken("FLOAT"); }
 {Number}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER);}
+{Boolean}                      { return new Yytoken("BOOLEAN"); }
 
 
 
@@ -307,23 +317,33 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 \"                             { stringBuffer.setLength(0); yybegin(STRING); }
 
 /* operators */
+//SYNTAX
 "="                            { return new Yytoken("EQ"); }
+"&&"                           { return new Yytoken("AND"); }
+"||"                           { return new Yytoken("OR")}
+"."                            { return new Yytoken("PERIOD"); }
+"!"                            { return new Yytoken("NOT");}
+"("                            { return new Yytoken("LFBRACK"); }
+")"                            { return new Yytoken("RTBRACK"); }
+";"                            { return new Yytoken("SEMICOLON"); }
+
+//MATH OPERATORS
 "*"                            { return new Yytoken("TIMES"); }
 "+"                            { return new Yytoken("PLUS"); }
 "-"                            { return new Yytoken("MINUS"); }
 "/"                            { return new Yytoken("DIV"); }
-"("                            { return new Yytoken("LFBRACK"); }
-")"                            { return new Yytoken("RTBRACK"); }
-";"                            { return new Yytoken("SEMICOLON"); }
+
+
+
+//COMPARISON OPERATORS
 "<"                            { return new Yytoken("LTHAN"); }
 ">"                            { return new Yytoken("GTHAN"); }
 "=="                           { return new Yytoken("EQCOMP"); }
 "<="                           { return new Yytoken("LTHANCOMP"); }
 ">="                           { return new Yytoken("GTHANCOMP"); }
-// TODO: Add && and ||
-"."                            { return new Yytoken("PERIOD"); }
-"!"                            { return new Yytoken("NOT");}
 "!="                           { return new Yytoken("NOTEQ"); }
+
+
 "//"                           { return new Yytoken("COMMENT"); }
 "##"                           { return new Yytoken("COMMENT"); }
 "#"                            { return new Yytoken("INVALID"); }
