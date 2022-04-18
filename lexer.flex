@@ -67,12 +67,10 @@ class Expression {
 
   public String toString(){
     return "   Expr: " + String.valueOf(LHS.type) + " " + String.valueOf(OP.type) + " " + String.valueOf(RHS.type);
-
   }
 
-
 }
-class Loop {
+class Loop{
     public String type;
     public Yytoken var;
     public Yytoken OP;
@@ -88,7 +86,7 @@ class Loop {
         exp.RHS = RHS;
         exp.OP = OP;
         comp = exp.condense();
-        if(String.valueOf(comp).equals("BOOLEAN")){
+        if (String.valueOf(comp).equals("BOOLEAN")){
             return comp;
         }
         throw new Error("Second component is not a valid boolean expression.");
@@ -103,24 +101,21 @@ class Loop {
 
     //Edits the loop to get new values
     public void editLoop(int stage, Yytoken elem){
-        if (stage ==)
         if (stage == 4){
             LHS = elem;
         }else if (stage == 5){
             OP = elem;
         } else if (stage == 6){
             RHS = elem;
-        }else{
+        }else if (stage == 7){
             if(elem.value.equals("NUMBER")){
-                var += elem.value;
+                //is valid
             }else {
                 throw new Error("Loop cannot be incremented")
             }
         }
     }
 }
-
-
 
 class Function {
   public ArrayList<String> parameterTypes;
@@ -166,7 +161,8 @@ public static <T> boolean contains(final T[] array, final T v) {
 }
 
 public static void main(String[] args) throws FileNotFoundException, IOException{
-  String[] RESERVED = {"String", "Number", "Function", "Boolean"};
+  String[] RESERVED = {"String", "Number", "Function", "Boolean", "void", "printf", "struct",
+                        "bool", "int", "true", "false", "mod", "and", "or", "return" };
   String[] DATA_STR = {"String", "Number", "Boolean"};
   String[] STATEMENT_TYPE = {"for","if", "else", "else if", "then" };
   String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER", "BOOLEAN"};
@@ -219,16 +215,12 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     int buildExprStage = 0;
     Expression currExpr = new Expression();
 
-    int buildStatement = 0;
-    Statement currSt = new Statement();
 
-    //Build loop stages: 0= none. 1 = create var. 2 = eq. 3 = value set
+    //Build loop stages: 0 = none. 1 = create var. 2 = name set. 3 = value set
     // 4 = building LHS. 5 = comp. 6 = building RHS.
     // 7 = incrementing, 8 = finalcheck.
     int buildLoop = 0;
     Loop currLoop = new Loop();
-
-
 
     try {
       for (Yytoken elem : tokens) {
@@ -289,7 +281,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           // TODO: Handle expression building and type checking
           // TODO: Ignore values because we don't calculate
         }
-        if (buildLoop != 0 || buildStatement == 0 && contains(STATEMENT_TYPE, String.valueOf(elem.type))){
+        if (buildLoop != 0 || buildLoop == 0 && contains(STATEMENT_TYPE, String.valueOf(elem.type))){
             if(elem.type.equals("SEMICOLON")){
                 if(buildLoop == 1){
                     currLoop.var = null; //There may not be a variable declared at this time
@@ -300,19 +292,19 @@ public static void main(String[] args) throws FileNotFoundException, IOException
                 }else if( numSemi == 2){ //Comparison is not always added in a for loop
                     buildLoop = 7; //Therefore, the loop stage goes right to the changing of the var;
                 }
+            }else if(elem.type.equals("LFBRACK")){
+                buildLoop = 1;
+
             }else if(elem.type.equals("RTBRACK")){ //Right bracket means the loop definition has finished
-                buildLoop = 8;
+                buildLoop = 0;
+                elem = currLoop.makeComp();
+
             }else if (elem.type.equals("for")){
                 currLoop.type = "for";
                 buildLoop = 1;
             }
 
             currLoop.editLoop(buildLoop,elem);
-
-            if (buildLoop == 8){
-                elem = currLoop.makeComp();
-
-            }
 
         }
         System.out.println(elem.type + ((elem.value != null) ? " - "+ elem.value : ""));
