@@ -54,6 +54,8 @@ class Expression {
   }
 
   public Yytoken condense() {
+    // TODO: Handle other operators. 
+
     if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(MATH_OPS, String.valueOf(OP.type))) {
       return new Yytoken("NUMBER");
     }
