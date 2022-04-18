@@ -2,3 +2,4 @@ Number d = 3 + 2
 Number x = 1 + 1
 1 + 2
 Function String foo (Number x)
+Function String bar (String x, Number d)

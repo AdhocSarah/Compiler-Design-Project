@@ -70,7 +70,7 @@ class Expression {
   }
 
 }
-class Loop{
+class Statement {
     public String type;
     public Yytoken var;
     public Yytoken OP;
@@ -81,7 +81,7 @@ class Loop{
     //Checks that the second component that the for loop is a boolean;
     public Yytoken makeComp(){
         Expression exp = new Expression();
-        Yytoken comp = new Yytoken();
+        Yytoken comp = new Yytoken("NULL");
         exp.LHS = LHS;
         exp.RHS = RHS;
         exp.OP = OP;
@@ -91,12 +91,14 @@ class Loop{
         }
         throw new Error("Second component is not a valid boolean expression.");
     }
+
     public Yytoken makeExp(Yytoken elem){
         if (elem.type.equals("NUMBER")){
             var = elem;
         } else{
             throw new Error("First component is not a valid variable expression.");
         }
+        return var;
     }
 
     //Edits the loop to get new values
@@ -109,9 +111,9 @@ class Loop{
             RHS = elem;
         }else if (stage == 7){
             if(elem.value.equals("NUMBER")){
-                //is valid
+                var.value = elem.value;
             }else {
-                throw new Error("Loop cannot be incremented")
+                throw new Error("Loop cannot be incremented");
             }
         }
     }
@@ -200,16 +202,19 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     /* System.out.println(out.toString()); */
 
     // Parsing
+
     // New Var Stages: 0 = none. 1 = type set. 2 = name set. 3 = val ready.
     // Old Var States: 0 = none. 1 = name retrieved. 2 = val ready.
     int newVarStage = 0;
     int oldVarStage = 0;
-    int functStage = 0;
     String varName = "";
     String varType = "";
+
+    // Function building
     Function funct = new Function();
     String functName = "";
-    boolean typeOrName = true;
+    int functStage = 0; // Stage of building process
+    int typeOrName = 0; // Stage in parameter definitions
 
     // Build Expr. Stages: 0 = none. 1 = building LHS. 2 = getting op. 3 = building RHS.
     int buildExprStage = 0;
@@ -220,10 +225,11 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     // 4 = building LHS. 5 = comp. 6 = building RHS.
     // 7 = incrementing, 8 = finalcheck.
     int buildLoop = 0;
-    Loop currLoop = new Loop();
+    Statement currLoop = new Statement();
 
     try {
       for (Yytoken elem : tokens) {
+        // Parse Function Definitions
         if (functStage != 0) {
           if (newVarStage != 0 || oldVarStage != 0) {
             throw new Error("Function definition in illegal spot.");
@@ -238,7 +244,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           }
           else if (functStage == 3 && String.valueOf(elem.type).equals("LFBRACK")) {
             functStage = 4;
-            typeOrName = true;
+            typeOrName = 0;
           }
           else if (functStage == 4) {
             if (String.valueOf(elem.type).equals("RTBRACK")) {
@@ -246,11 +252,14 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               functs.put(functName, funct);
               System.out.println("New Funct: " + functName + " - " + funct.toString());
             }
-            else if (typeOrName && String.valueOf(elem.type).equals("IDENTIFIER") && contains(DATA_STR, String.valueOf(elem.value))) {
+            else if (typeOrName == 0 && String.valueOf(elem.type).equals("IDENTIFIER") && contains(DATA_STR, String.valueOf(elem.value))) {
               funct.addParams(String.valueOf(elem.value));
-              typeOrName = false;
-            } else if (!typeOrName && String.valueOf(elem.type).equals("IDENTIFIER") && !contains(DATA_STR, String.valueOf(elem.value))) {
-              typeOrName = true;
+              /* System.out.println("Added param " + elem.value + " to funct: " + functName); */
+              typeOrName = 1;
+            } else if (typeOrName == 1 && String.valueOf(elem.type).equals("IDENTIFIER") && !contains(DATA_STR, String.valueOf(elem.value))) {
+              typeOrName = 2;
+            } else if (typeOrName == 2 && String.valueOf(elem.type).equals("COMMA")) {
+              typeOrName = 0;
             }
           }
 
@@ -278,8 +287,6 @@ public static void main(String[] args) throws FileNotFoundException, IOException
             /* System.out.println(currExpr);
             System.out.println(elem.type + ((elem.value != null) ? " - "+ elem.value : "")); */
           }
-          // TODO: Handle expression building and type checking
-          // TODO: Ignore values because we don't calculate
         }
         if (buildLoop != 0 || buildLoop == 0 && contains(STATEMENT_TYPE, String.valueOf(elem.type))){
             if(elem.type.equals("SEMICOLON")){
@@ -287,9 +294,9 @@ public static void main(String[] args) throws FileNotFoundException, IOException
                     currLoop.var = null; //There may not be a variable declared at this time
                 }
                 currLoop.numSemi++;
-                if (numSemi == 1){ //Checks the number of semicolons there are
+                if (currLoop.numSemi == 1){ //Checks the number of semicolons there are
                     buildLoop = 4;
-                }else if( numSemi == 2){ //Comparison is not always added in a for loop
+                }else if(currLoop.numSemi == 2){ //Comparison is not always added in a for loop
                     buildLoop = 7; //Therefore, the loop stage goes right to the changing of the var;
                 }
             }else if(elem.type.equals("LFBRACK")){
@@ -433,12 +440,11 @@ Boolean = true | false
 <YYINITIAL> {
 /* identifiers */
 
+{Boolean}                      { return new Yytoken("BOOLEAN"); }
 {Identifier}                   { return new Yytoken("IDENTIFIER", yytext()); }
-/* {InvalidNumber}                { return new Yytoken("INVALID"); } */
 {Float}                        {  return new Yytoken("FLOAT"); }
 {Number}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER);}
-{Boolean}                      { return new Yytoken("BOOLEAN"); }
-
+{InvalidNumber}                { return new Yytoken("INVALID"); }
 
 
 /* literals */
@@ -454,6 +460,7 @@ Boolean = true | false
 "("                            { return new Yytoken("LFBRACK"); }
 ")"                            { return new Yytoken("RTBRACK"); }
 ";"                            { return new Yytoken("SEMICOLON"); }
+","                            { return new Yytoken("COMMA"); }
 
 //MATH OPERATORS
 "*"                            { return new Yytoken("TIMES"); }
