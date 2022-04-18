@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+// Sarah Klein and Lauren Marimon
+// Functions as an all-in-one suite to better handle the custom classes defined for this assignment.
 
 class Yytoken {
   public String type;
@@ -57,7 +59,7 @@ class Expression {
   public Yytoken condense() {
     if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(MATH_OPS, String.valueOf(OP.type))) {
       return new Yytoken("NUMBER");
-  } else if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(COMP_OPS, String,valueOf(OP.type))){
+  } else if (String.valueOf(LHS.type).equals("NUMBER") && String.valueOf(RHS.type).equals("NUMBER") && contains(COMP_OPS, String.valueOf(OP.type))){
       return new Yytoken("BOOLEAN");
   }
     throw new Error("Type mismatch in expression.");
@@ -112,16 +114,22 @@ class Loop {
 
 
 class Function {
-  public String type;
-  public String[] parameterTypes;
-  public Object returnValue;
-  public Function(String type, String[] parameterTypes, Object returnValue) {
-    this.type = type;
-    this.parameterTypes = parameterTypes;
-    this.returnValue = returnValue;
+  public ArrayList<String> parameterTypes;
+  public Object returnType;
+
+  public Function() {
+    this.parameterTypes = new ArrayList<>();
+  }
+
+  public void addParams (String parameterType){
+    this.parameterTypes.add(parameterType);
+  }
+
+  public void setReturn(String returnType) {
+    this.returnType = returnType;
   }
   public String toString() {
-    return "{Function "+this.type + "(" + this.parameterTypes + " ) :" + this.returnValue  + "}";
+    return "{Function "+ "(" + this.parameterTypes.toString() + ") : " + this.returnType  + "}";
   }
 }
 
@@ -149,7 +157,8 @@ public static <T> boolean contains(final T[] array, final T v) {
 }
 
 public static void main(String[] args) throws FileNotFoundException, IOException{
-  String[] RESERVED = {"String", "Number", "Function"};
+  String[] RESERVED = {"String", "Number", "Function", "Boolean"};
+  String[] DATA_STR = {"String", "Number", "Boolean"};
   String[] STATEMENT_TYPE = {"for","if", "else", "else if", "then" };
   String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER", "BOOLEAN"};
   String[] OPERATORS = {"PLUS", "MINUS", "TIMES", "DIV", "GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP", "AND", "OR"};
@@ -159,6 +168,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
   boolean isValid = true;
   ArrayList<Yytoken> tokens = new ArrayList<>();
   HashMap<String, String> varTypes = new HashMap<>();
+  HashMap<String, Function> functs = new HashMap<>();
 
   try {
     Yylex yy = new Yylex(yyin);
@@ -189,8 +199,12 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     // Old Var States: 0 = none. 1 = name retrieved. 2 = val ready.
     int newVarStage = 0;
     int oldVarStage = 0;
+    int functStage = 0;
     String varName = "";
     String varType = "";
+    Function funct = new Function();
+    String functName = "";
+    boolean typeOrName = true;
 
     // Build Expr. Stages: 0 = none. 1 = building LHS. 2 = getting op. 3 = building RHS.
     int buildExprStage = 0;
@@ -208,6 +222,42 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 
     try {
       for (Yytoken elem : tokens) {
+        if (functStage != 0) {
+          if (newVarStage != 0 || oldVarStage != 0) {
+            throw new Error("Function definition in illegal spot.");
+          }
+          if (functStage == 1 && String.valueOf(elem.type).equals("IDENTIFIER") && contains(DATA_STR, String.valueOf(elem.value))) {
+            funct.setReturn(String.valueOf(elem.value));
+            functStage = 2;
+          }
+          else if (functStage == 2 && String.valueOf(elem.type).equals("IDENTIFIER")) {
+            functName = String.valueOf(elem.value);
+            functStage = 3;
+          }
+          else if (functStage == 3 && String.valueOf(elem.type).equals("LFBRACK")) {
+            functStage = 4;
+            typeOrName = true;
+          }
+          else if (functStage == 4) {
+            if (String.valueOf(elem.type).equals("RTBRACK")) {
+              functStage = 0;
+              functs.put(functName, funct);
+              System.out.println("New Funct: " + functName + " - " + funct.toString());
+            }
+            else if (typeOrName && String.valueOf(elem.type).equals("IDENTIFIER") && contains(DATA_STR, String.valueOf(elem.value))) {
+              funct.addParams(String.valueOf(elem.value));
+              typeOrName = false;
+            } else if (!typeOrName && String.valueOf(elem.type).equals("IDENTIFIER") && !contains(DATA_STR, String.valueOf(elem.value))) {
+              typeOrName = true;
+            }
+          }
+
+        }
+        else if (String.valueOf(elem.type).equals("IDENTIFIER") && String.valueOf(elem.value).equals("Function")) {
+          functStage = 1;
+          funct = new Function();
+        }
+        else {
         if (buildExprStage != 0 || (buildExprStage == 0 && contains(DATA_TYPES, String.valueOf(elem.type)))) {
           /* System.out.println("Adding to expr @ " + buildExprStage + " w/ " + String.valueOf(elem.type)); */
           if (buildExprStage < 2) {
@@ -309,8 +359,8 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               else if (varType.equals("NUMBER")) {
                 varType = "Number";
               }
-              else if (valType.equals("BOOLEAN")){
-                  valType = "Boolean";
+              else if (varType.equals("BOOLEAN")){
+                  varType = "Boolean";
               }
               if (varTypes.get(varName).equals(varType)) {
                 oldVarStage = 0;
@@ -325,7 +375,7 @@ public static void main(String[] args) throws FileNotFoundException, IOException
             }
           }
         }
-
+        }
       }
     }
     catch (Throwable e) {
@@ -382,7 +432,7 @@ Boolean = true | false
 //SYNTAX
 "="                            { return new Yytoken("EQ"); }
 "&&"                           { return new Yytoken("AND"); }
-"||"                           { return new Yytoken("OR")}
+"||"                           { return new Yytoken("OR"); }
 "."                            { return new Yytoken("PERIOD"); }
 "!"                            { return new Yytoken("NOT");}
 "("                            { return new Yytoken("LFBRACK"); }
