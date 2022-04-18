@@ -76,9 +76,10 @@ class Loop {
     public Yytoken OP;
     public Yytoken LHS;
     public Yytoken RHS;
+    public int numSemi = 0;
 
     //Checks that the second component that the for loop is a boolean;
-    public Yytoken makeExp(){
+    public Yytoken makeComp(){
         Expression exp = new Expression();
         Yytoken comp = new Yytoken();
         exp.LHS = LHS;
@@ -86,10 +87,18 @@ class Loop {
         exp.OP = OP;
         comp = exp.condense();
         if(String.valueOf(comp).equals("BOOLEAN")){
-            return comp
+            return comp;
         }
         throw new Error("Second component is not a valid boolean expression.");
     }
+    public Yytoken makeExp(Yytoken elem){
+        if (elem.type.equals("NUMBER")){
+            var = elem;
+        } else{
+            throw new Error("First component is not a valid variable expression.");
+        }
+    }
+
     //Edits the loop to get new values
     public void editLoop(int stage, Yytoken elem){
         if (stage ==)
@@ -201,9 +210,10 @@ public static void main(String[] args) throws FileNotFoundException, IOException
 
     //Build loop stages: 0= none. 1 = create var. 2 = eq. 3 = value set
     // 4 = building LHS. 5 = comp. 6 = building RHS.
-    // 7 = incrementing
+    // 7 = incrementing, 8 = finalcheck.
     int buildLoop = 0;
     Loop currLoop = new Loop();
+
 
 
     try {
@@ -229,15 +239,29 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           // TODO: Handle expression building and type checking
           // TODO: Ignore values because we don't calculate
         }
-        if (buildLoop != 0 || buildStatement == 0 && containts(STATEMENT_TYPE, String.valueOf(elem.type))){
-            if (elem.type.equals("for")){
+        if (buildLoop != 0 || buildStatement == 0 && contains(STATEMENT_TYPE, String.valueOf(elem.type))){
+            if(elem.type.equals("SEMICOLON")){
+                if(buildLoop == 1){
+                    currLoop.var = null; //There may not be a variable declared at this time
+                }
+                currLoop.numSemi++;
+                if (numSemi == 1){ //Checks the number of semicolons there are
+                    buildLoop = 4;
+                }else if( numSemi == 2){ //Comparison is not always added in a for loop
+                    buildLoop = 7; //Therefore, the loop stage goes right to the changing of the var;
+                }
+            }else if(elem.type.equals("RTBRACK")){ //Right bracket means the loop definition has finished
+                buildLoop = 8;
+            }else if (elem.type.equals("for")){
                 currLoop.type = "for";
+                buildLoop = 1;
             }
+
             currLoop.editLoop(buildLoop,elem);
 
-            if (buildLoop >= 7){
-                elem = currLoop.makeExp();
-                elem.value = "LOOP";
+            if (buildLoop == 8){
+                elem = currLoop.makeComp();
+
             }
 
         }
