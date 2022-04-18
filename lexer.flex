@@ -27,7 +27,7 @@ class Expression {
   public Yytoken OP;
   public Yytoken RHS;
   String[] MATH_OPS = {"PLUS", "MINUS", "TIMES", "DIV"};
-  String[] COMP_OPS = {"GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP"};
+  String[] COMP_OPS = {"GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP", "AND", "OR"};
 
   public void editExpr(int stage, Yytoken elem) {
     if (stage == 2) {
@@ -70,6 +70,46 @@ class Expression {
 
 
 }
+class Loop {
+    public String type;
+    public Yytoken var;
+    public Yytoken OP;
+    public Yytoken LHS;
+    public Yytoken RHS;
+
+    //Checks that the second component that the for loop is a boolean;
+    public Yytoken makeExp(){
+        Expression exp = new Expression();
+        Yytoken comp = new Yytoken();
+        exp.LHS = LHS;
+        exp.RHS = RHS;
+        exp.OP = OP;
+        comp = exp.condense();
+        if(String.valueOf(comp).equals("BOOLEAN")){
+            return comp
+        }
+        throw new Error("Second component is not a valid boolean expression.");
+    }
+    //Edits the loop to get new values
+    public void editLoop(int stage, Yytoken elem){
+        if (stage ==)
+        if (stage == 4){
+            LHS = elem;
+        }else if (stage == 5){
+            OP = elem;
+        } else if (stage == 6){
+            RHS = elem;
+        }else{
+            if(elem.value.equals("NUMBER")){
+                var += elem.value;
+            }else {
+                throw new Error("Loop cannot be incremented")
+            }
+        }
+    }
+}
+
+
 
 class Function {
   public String type;
@@ -110,9 +150,9 @@ public static <T> boolean contains(final T[] array, final T v) {
 
 public static void main(String[] args) throws FileNotFoundException, IOException{
   String[] RESERVED = {"String", "Number", "Function"};
+  String[] STATEMENT_TYPE = {"for","if", "else", "else if", "then" };
   String[] DATA_TYPES = {"STRING_LITERAL", "NUMBER", "BOOLEAN"};
-  String[] OPERATORS = {"PLUS", "MINUS", "TIMES", "DIV", "GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP"};
-
+  String[] OPERATORS = {"PLUS", "MINUS", "TIMES", "DIV", "GTHAN", "LTHAN", "EQCOMP", "GTHANCOMP", "LTHANCOMP", "AND", "OR"};
 
   // Lexing
   FileReader yyin = new FileReader(args[0]);
@@ -156,6 +196,16 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     int buildExprStage = 0;
     Expression currExpr = new Expression();
 
+    int buildStatement = 0;
+    Statement currSt = new Statement();
+
+    //Build loop stages: 0= none. 1 = create var. 2 = eq. 3 = value set
+    // 4 = building LHS. 5 = comp. 6 = building RHS.
+    // 7 = incrementing
+    int buildLoop = 0;
+    Loop currLoop = new Loop();
+
+
     try {
       for (Yytoken elem : tokens) {
         if (buildExprStage != 0 || (buildExprStage == 0 && contains(DATA_TYPES, String.valueOf(elem.type)))) {
@@ -178,6 +228,18 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           }
           // TODO: Handle expression building and type checking
           // TODO: Ignore values because we don't calculate
+        }
+        if (buildLoop != 0 || buildStatement == 0 && containts(STATEMENT_TYPE, String.valueOf(elem.type))){
+            if (elem.type.equals("for")){
+                currLoop.type = "for";
+            }
+            currLoop.editLoop(buildLoop,elem);
+
+            if (buildLoop >= 7){
+                elem = currLoop.makeExp();
+                elem.value = "LOOP";
+            }
+
         }
         System.out.println(elem.type + ((elem.value != null) ? " - "+ elem.value : ""));
         if (buildExprStage == 0 || (buildExprStage == 1 && (newVarStage != 0 || oldVarStage != 0))) {
