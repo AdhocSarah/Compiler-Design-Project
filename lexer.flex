@@ -108,6 +108,9 @@ public static void main(String[] args) throws FileNotFoundException, IOException
     int numParenthsis = 0;
     boolean validClosure = true;
 
+    //Check for a valid boolean expression
+    boolean validBool = false;
+
     try {
       for (Yytoken elem : tokens) {
 
@@ -204,7 +207,6 @@ public static void main(String[] args) throws FileNotFoundException, IOException
             throw new Error("Bad variable definition." );
           }
 
-
           //Building of expressions Check SYNTAX
           if (elem.type.equals("SEMICOLON")){
               varCurr = 0;
@@ -216,7 +218,11 @@ public static void main(String[] args) throws FileNotFoundException, IOException
           }else if (elem.type.equals("RFBRACK")){
               ++numParenthsis;
           }else if (elem.type.equals("LFBRACK")){
-              --numParenthsis;
+              if (numParenthsis > 0){
+                  --numParenthsis;
+              }else {
+                  validClosure = false;
+              }
           }
 
         //Check if the expressions could be done
@@ -224,9 +230,10 @@ public static void main(String[] args) throws FileNotFoundException, IOException
               if (varCurr != 1){
                   validExpression = false;
               }
-              if (varCurr != varCheck){
-                  validExpression = false;
-              }
+
+          }
+          if (varCurr != varCheck){
+              validExpression = false;
           }
 
           if (validExpression == false){
@@ -282,7 +289,7 @@ InvalidNumber = [:jletterdigit:]*[:jletter:]*
 
 
 {InvalidNumber}                { return new Yytoken("INVALID"); }
-{Float}                        {  return new Yytoken("FLOAT"); }
+{Float}                        { return new Yytoken("FLOAT"); }
 {Identifier}                   { return new Yytoken("IDENTIFIER", yytext()); }
 {Number}                       { stringBuffer.setLength(0); stringBuffer.append( yytext() ); yybegin(NUMBER); }
 
